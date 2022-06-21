@@ -1,5 +1,11 @@
+import datetime
+
 from eddn import main
-from csv_processing import csv_value_check, csv_write_commodity
+from csv_processing import *
+
+enable_fleet_carrier = True
+commodity_file_name = 'commodity.csv'
+station_file_name = 'station.csv'
 
 while True:
     message = next(main())
@@ -14,6 +20,7 @@ while True:
         data_separator = str(timestamp).split('T')
         time = data_separator[1]
         date = data_separator[0]
+        update_value = f'Updated at {time} on {date}'
 
         # Main Content
         message_content = message['message']
@@ -33,14 +40,34 @@ while True:
             for e in economies:
                 name = e['name']
                 if name == 'Carrier':
-                    print('Skipping Fleet Carrier...')
                     fleet_carrier = True
 
         except KeyError:
             economies = 'No Economies'
 
-        if fleet_carrier:
+        if fleet_carrier and not enable_fleet_carrier:
             continue
+
+        # Build Station List
+        station_info = [station_name, market_id, system_name, update_value]
+
+        # Call for Check
+
+        check = csv_value_check(station_file_name, market_id, 2)
+
+        if not check:
+
+            # Write
+            check = csv_write_line(station_info, station_file_name)
+
+            if type(check) is int:
+                print(f'{station_name} inserted into CSV file, row {check}')
+
+
+        else:
+            check = update_timestamp(station_file_name, market_id, update_value, 2, 4)
+            if check:
+                print(f'Updated timestamp for {station_name}. ({market_id})')
 
         # Commodity Processing
 
@@ -59,17 +86,14 @@ while True:
             commodity_info_list = [None, c_name, mean_price, buy_price, stock, sell_price, demand]
 
             # Call for Check
-            check = csv_value_check(c_name, 1)
+            check = csv_value_check(commodity_file_name, c_name, 2)
 
             if not check:
                 # Call for Write
-                check = csv_write_commodity(commodity_info_list)
+                check = csv_write_line(commodity_info_list, commodity_file_name)
 
                 if type(check) is int:
                     print(f'{c_name} inserted into CSV file, row {check}')
-
-            else:
-                print('Commodity already in CSV, skipping...')
 
         print(f'Message received at {time} on {date}')
         print(commodities)
